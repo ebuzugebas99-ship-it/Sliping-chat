@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SLIPING CHAT · অ্যাডমিন</title>
+<style>
+/* ===== রঙ ও থিম ===== */
+:root{--bg:#f4f6fb;--sf:#fff;--tx:#14182a;--mu:#6b7390;--br:#e3e7f1;--ac:#5b5bf0;--them:#eef0f7;--ok:#1fa971;--bad:#e5484d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1220;--sf:#181c2f;--tx:#e8ebf8;--mu:#8e96b8;--br:#262b45;--ac:#7c7cff;--them:#232842;--ok:#3ddc97;--bad:#ff6b70}}
+:root[data-theme="dark"]{--bg:#0f1220;--sf:#181c2f;--tx:#e8ebf8;--mu:#8e96b8;--br:#262b45;--ac:#7c7cff;--them:#232842;--ok:#3ddc97;--bad:#ff6b70}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,"Noto Sans Bengali","Hind Siliguri",sans-serif}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.btn{background:var(--ac);color:#fff;padding:9px 16px;border-radius:10px;font-weight:600}
+.btn.g{background:var(--them);color:var(--tx)}.btn.d{background:var(--bad);color:#fff}.btn.s{padding:5px 10px;font-size:13px}
+input{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:10px 12px;width:100%;outline:none}
+input:focus{border-color:var(--ac)}input[type=checkbox]{width:auto}
+.login{max-width:360px;margin:8vh auto;padding:24px;background:var(--sf);border:1px solid var(--br);border-radius:16px;display:flex;flex-direction:column;gap:12px}
+.logo{font-weight:800;letter-spacing:.5px;font-size:20px;color:var(--ac)}
+.demo{font-size:12px;color:var(--mu);background:var(--them);padding:6px 10px;border-radius:8px}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;margin-bottom:10px}
+.cards .card{margin:0}.card b{font-size:24px;display:block}
+.tbl{overflow-x:auto;background:var(--sf);border:1px solid var(--br);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:9px;border-bottom:1px solid var(--br);text-align:left;white-space:nowrap}
+.tag{padding:2px 8px;border-radius:8px;font-size:12px;background:var(--them)}.tag.ok{color:var(--ok)}.tag.bad{color:var(--bad)}
+.empty{margin:auto;color:var(--mu);text-align:center;padding:20px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:9}
+</style></head><body>
+<div id="app"><div class="empty" style="padding-top:30vh">লোড হচ্ছে…</div></div>
+<script type="module">
+/* ===== ১) সেটিং: Firebase কনফিগ (চ্যাট সাইটের মতোই) ===== */
+const firebaseConfig={apiKey:"AIzaSyAi4xzSxIbpte7PXkPwR8T_-qr0Vqxik7A",authDomain:"sliping-chat-2.firebaseapp.com",projectId:"sliping-chat-2",storageBucket:"sliping-chat-2.firebasestorage.app",messagingSenderId:"272134980823",appId:"1:272134980823:web:1c295d79bf20f7eb0cdc92"};
+const G='https://www.gstatic.com/firebasejs/10.12.2/';
+const DEMO_MAIL='admin@test.com',DEMO_PASS='admin123';
+const rnd=()=>Math.random().toString(16).slice(2,10);
+
+/* ===== ২) ডেটা লেয়ার: Firebase পেলে Firebase, না পেলে টেস্ট মোড (নমুনা ডেটা) ===== */
+async function makeFirebase(){
+const [A,Au,FS]=await Promise.all([import(G+'firebase-app.js'),import(G+'firebase-auth.js'),import(G+'firebase-firestore.js')]);
+const app0=A.initializeApp(firebaseConfig),auth=Au.getAuth(app0),db=FS.getFirestore(app0);
+const ms=t=>t&&t.toMillis?t.toMillis():null,rows=s=>s.docs.map(d=>({id:d.id,...d.data(),ms:ms(d.data().t)}));
+return{demo:false,
+login:(e,p)=>Au.signInWithEmailAndPassword(auth,e,p),logout:()=>Au.signOut(auth),
+onAuth(cb){Au.onAuthStateChanged(auth,async u=>{if(!u)return cb(null);const a=await FS.getDoc(FS.doc(db,'admins',u.uid));cb(a.exists()?{email:u.email}:'bad')})},
+watch(n,cb){
+if(n==='users')return FS.onSnapshot(FS.collection(db,'users'),s=>cb(rows(s)));
+if(n==='reports')return FS.onSnapshot(FS.collection(db,'reports'),s=>cb(rows(s).sort((a,b)=>(b.ms||0)-(a.ms||0))));
+if(n==='audit')return FS.onSnapshot(FS.query(FS.collection(db,'audit'),FS.orderBy('t','desc'),FS.limit(50)),s=>cb(rows(s)));
+return FS.onSnapshot(FS.doc(db,'settings','features'),d=>cb(d.data()||{}))},
+setSt:(id,st)=>FS.updateDoc(FS.doc(db,'users',id),{st}),
+feature:(k,v)=>FS.setDoc(FS.doc(db,'settings','features'),{[k]:v},{merge:true}),
+async resolve(r,s){if(s&&r.targetId)await FS.updateDoc(FS.doc(db,'users',r.targetId),{st:'suspended'});await FS.updateDoc(FS.doc(db,'reports',r.id),{st:s?'sus':'dismissed'})},
+audit:(by,act)=>FS.addDoc(FS.collection(db,'audit'),{by,act,t:FS.serverTimestamp()})}}
+function makeLocal(){
+const K='sa_state',now=Date.now(),h=3600e3;
+const seed={users:[{id:'u1',name:'rahim',st:'active',ms:now-9*24*h},{id:'u2',name:'karim',st:'active',ms:now-5*24*h},{id:'u3',name:'sumi',st:'suspended',ms:now-3*24*h},{id:'u4',name:'nila',st:'active',ms:now-h}],
+reports:[{id:'r1',target:'karim',targetId:'u2',by:'rahim',reason:'ইউজার রিপোর্ট',st:'open',ms:now-2*h},{id:'r2',target:'sumi',targetId:'u3',by:'nila',reason:'ইউজার রিপোর্ট',st:'sus',ms:now-30*h}],
+audit:[{id:'a1',by:DEMO_MAIL,act:'sumi → suspended',ms:now-29*h}],features:{reg:true,maint:false}};
+const ld=()=>{try{return JSON.parse(localStorage.getItem(K))||seed}catch{return seed}},sv=s=>{try{localStorage.setItem(K,JSON.stringify(s))}catch{}};
+let S=ld();const L=new Set(),fire=()=>{sv(S);L.forEach(f=>f())};let authCb=null;
+return{demo:true,
+async login(e,p){if(e!==DEMO_MAIL||p!==DEMO_PASS)throw new Error('bad');authCb&&authCb({email:e})},
+async logout(){authCb&&authCb(null)},
+onAuth(cb){authCb=cb;cb(null)},
+watch(n,cb){const f=()=>cb(n==='features'?{...S.features}:[...S[n]].sort((a,b)=>(b.ms||0)-(a.ms||0)));L.add(f);f();return()=>L.delete(f)},
+async setSt(id,st){S.users.find(x=>x.id===id).st=st;fire()},
+async feature(k,v){S.features[k]=v;fire()},
+async resolve(r,s){if(s&&r.targetId){const u=S.users.find(x=>x.id===r.targetId);if(u)u.st='suspended'}S.reports.find(x=>x.id===r.id).st=s?'sus':'dismissed';fire()},
+async audit(by,act){S.audit.push({id:rnd(),by,act,ms:Date.now()});fire()}}}
+let B;try{B=await Promise.race([makeFirebase(),new Promise((_,r)=>setTimeout(r,6000))])}catch{B=makeLocal()}
+
+/* ===== ৩) ইন্টারফেস ===== */
+const $=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let me,U=[],RP=[],AU=[],F={reg:true,maint:false},tab='ov',subs=[];
+const dt=m=>m.ms?new Date(m.ms).toLocaleString('bn-BD'):'…';
+const toast=t=>{const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)};
+const theme=()=>{const r=document.documentElement;r.dataset.theme=(r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'?'light':'dark'};
+function loginUI(m=''){app.innerHTML=`<div class="login"><div class="logo">SLIPING CHAT · অ্যাডমিন</div>
+${B.demo?`<div class="demo">🧪 টেস্ট মোড (নমুনা ডেটা)।<br>ইমেইল: <b>${DEMO_MAIL}</b><br>পাসওয়ার্ড: <b>${DEMO_PASS}</b></div>`:''}
+<input id="e" type="email" placeholder="অ্যাডমিন ইমেইল" autocapitalize="none" autocomplete="off"><input id="p" type="password" placeholder="পাসওয়ার্ড" autocomplete="off" onkeydown="if(event.key==='Enter')login()"><div style="color:var(--bad)">${esc(m)}</div><div class="row"><button class="btn" onclick="login()">লগইন</button><button class="btn g" onclick="theme()">🌓</button></div></div>`}
+async function login(){try{await B.login($('#e').value.trim(),$('#p').value)}catch{loginUI('ইমেইল বা পাসওয়ার্ড ভুল')}}
+const out=()=>B.logout();
+function ui(){if(!me)return;const T={ov:'ওভারভিউ',us:'ইউজার',rp:'রিপোর্ট',au:'অডিট লগ'},open=RP.filter(r=>r.st==='open').length;
+app.innerHTML=`<div class="wrap"><div class="row" style="padding-bottom:12px"><div class="logo" style="flex:1">SLIPING CHAT · অ্যাডমিন</div>${B.demo?'<span class="tag">🧪 টেস্ট মোড</span>':''}<button class="btn g s" onclick="theme()">🌓</button><button class="btn g s" onclick="out()">লগআউট</button></div><div class="tabs">${Object.keys(T).map(k=>`<button class="btn ${tab===k?'':'g'} s" onclick="setTab('${k}')">${T[k]}${k==='rp'&&open?` (${open})`:''}</button>`).join('')}</div><div style="margin-top:14px">${body()}</div></div>`}
+function body(){
+if(tab==='ov'){const c=(n,t)=>`<div class="card"><b>${n}</b>${t}</div>`,tg=(k,t)=>`<label class="row" style="padding:6px 0"><input type="checkbox" ${F[k]?'checked':''} onchange="toggle('${k}',this.checked)"> ${t}</label>`;
+return `<div class="cards">${c(U.length,'মোট ইউজার')}${c(U.filter(x=>x.st==='active').length,'সক্রিয় ইউজার')}${c(U.filter(x=>x.st!=='active').length,'সাসপেন্ড')}${c(RP.filter(r=>r.st==='open').length,'খোলা রিপোর্ট')}</div><div class="card"><b style="font-size:16px">ফিচার টগল</b>${tg('reg','নতুন রেজিস্ট্রেশন চালু')}${tg('maint','রক্ষণাবেক্ষণ মোড (ইউজার লগইন বন্ধ)')}</div>`}
+if(tab==='us')return `<div class="tbl"><table><tr><th>ইউজারনেম</th><th>অবস্থা</th><th>যোগদান</th><th>অ্যাকশন</th></tr>${U.map(u=>`<tr><td>${esc(u.name)}</td><td><span class="tag ${u.st==='active'?'ok':'bad'}">${u.st==='active'?'সক্রিয়':'সাসপেন্ড'}</span></td><td>${dt(u)}</td><td><button class="btn g s" onclick="setSt('${u.id}','${u.st==='active'?'suspended':'active'}','${esc(u.name)}')">${u.st==='active'?'সাসপেন্ড':'সক্রিয় করুন'}</button></td></tr>`).join('')||'<tr><td colspan=4 class="empty">কোনো ইউজার নেই</td></tr>'}</table></div>`;
+if(tab==='rp')return RP.map(r=>`<div class="card"><b style="font-size:16px">${esc(r.target)} <span class="tag ${r.st==='open'?'bad':'ok'}">${r.st==='open'?'খোলা':r.st==='sus'?'সাসপেন্ড করা হয়েছে':'বাতিল'}</span></b>রিপোর্টকারী: ${esc(r.by)} · ${esc(r.reason)} · ${dt(r)}${r.st==='open'?`<div class="row" style="margin-top:8px"><button class="btn d s" onclick="res('${r.id}',1)">ইউজার সাসপেন্ড</button><button class="btn g s" onclick="res('${r.id}',0)">বাতিল করুন</button></div>`:''}</div>`).join('')||'<div class="empty">কোনো রিপোর্ট নেই</div>';
+return AU.map(a=>`<div class="card" style="padding:10px 14px"><small style="color:var(--mu)">${dt(a)} · ${esc(a.by)}</small><br>${esc(a.act)}</div>`).join('')||'<div class="empty">এখনো কোনো অডিট রেকর্ড নেই</div>'}
+const setTab=k=>{tab=k;ui()};
+const setSt=async(id,st,n)=>{try{await B.setSt(id,st);B.audit(me.email,`${n} → ${st}`)}catch{toast('ব্যর্থ হয়েছে')}};
+const toggle=async(k,v)=>{try{await B.feature(k,v);B.audit(me.email,`ফিচার ${k} = ${v}`)}catch{toast('ব্যর্থ হয়েছে')}};
+const res=async(id,s)=>{const r=RP.find(x=>x.id===id);try{await B.resolve(r,s);B.audit(me.email,`রিপোর্ট (${r.target}): ${s?'সাসপেন্ড':'বাতিল'}`)}catch{toast('ব্যর্থ হয়েছে')}};
+
+/* ===== ৪) নতুন ফিচার: ফাংশন লিখে নিচের তালিকায় নাম যোগ করুন ===== */
+Object.assign(window,{theme,login,out,setTab,setSt,toggle,res});
+B.onAuth(u=>{subs.forEach(f=>f());subs=[];me=null;
+if(u==='bad'){B.logout();return loginUI('এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই')}
+if(!u)return loginUI();
+me=u;const W=(n,fn)=>subs.push(B.watch(n,x=>{fn(x);ui()}));
+W('users',x=>U=x);W('reports',x=>RP=x);W('audit',x=>AU=x);W('features',x=>F={reg:true,maint:false,...x});ui()});
+</script></body></html>

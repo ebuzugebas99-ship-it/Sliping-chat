@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SLIPING CHAT</title>
+<style>
+/* ===== রঙ ও থিম: এখানে বদলালেই পুরো সাইটের রঙ বদলাবে ===== */
+:root{--bg:#f4f6fb;--sf:#fff;--tx:#14182a;--mu:#6b7390;--br:#e3e7f1;--ac:#5b5bf0;--them:#eef0f7;--bad:#e5484d;--ok:#1fa971;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1220;--sf:#181c2f;--tx:#e8ebf8;--mu:#8e96b8;--br:#262b45;--ac:#7c7cff;--them:#232842;--bad:#ff6b70;--ok:#3ddc97}}
+:root[data-theme="dark"]{--bg:#0f1220;--sf:#181c2f;--tx:#e8ebf8;--mu:#8e96b8;--br:#262b45;--ac:#7c7cff;--them:#232842;--bad:#ff6b70;--ok:#3ddc97}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,"Noto Sans Bengali","Hind Siliguri",sans-serif}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.btn{background:var(--ac);color:#fff;padding:9px 16px;border-radius:10px;font-weight:600}
+.btn.g{background:var(--them);color:var(--tx)}.btn.s{padding:5px 10px;font-size:13px}
+input{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:10px 12px;width:100%;outline:none}
+input:focus{border-color:var(--ac)}
+.login{max-width:360px;margin:8vh auto;padding:24px;background:var(--sf);border:1px solid var(--br);border-radius:16px;display:flex;flex-direction:column;gap:12px}
+.logo{font-weight:800;letter-spacing:.5px;color:var(--ac)}
+.demo{font-size:12px;color:var(--mu);background:var(--them);padding:6px 10px;border-radius:8px}
+.tabs{display:flex;gap:6px}.tabs .btn{flex:1}
+.app{display:flex;height:100%}
+.side{width:300px;border-right:1px solid var(--br);background:var(--sf);display:flex;flex-direction:column}
+.hd{display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--br)}.hd b{flex:1}
+.av{width:42px;height:42px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.av.sm{width:30px;height:30px;font-size:13px}
+.it{display:flex;gap:10px;padding:10px 12px;align-items:center;width:100%;text-align:left}
+.it:hover,.it.on{background:var(--them)}
+#list{overflow:auto;flex:1}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+#msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
+.b{max-width:78%;padding:8px 12px;border-radius:14px;background:var(--them);align-self:flex-start;word-break:break-word;cursor:pointer}
+.b.me{background:var(--ac);color:#fff;align-self:flex-end}
+.b .n{display:block;font-size:12px;font-weight:700;color:var(--ac)}
+.b small{display:block;font-size:11px;opacity:.75;text-align:right}
+.acts{display:flex;gap:6px}
+.cmp{display:flex;gap:8px;padding:10px;border-top:1px solid var(--br);background:var(--sf)}
+.eb{padding:6px 12px;background:var(--them);color:var(--mu);font-size:13px}
+.empty{margin:auto;color:var(--mu);text-align:center;padding:20px}
+.back{display:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:9}
+@media(max-width:720px){.side{width:100%}.main{display:none}.app.open .side{display:none}.app.open .main{display:flex}.back{display:inline-block}}
+</style></head><body>
+<div id="app"><div class="empty" style="padding-top:30vh">লোড হচ্ছে…</div></div>
+<script type="module">
+/* ===== ১) সেটিং: Firebase কনফিগ এখানে বসান ===== */
+const firebaseConfig={apiKey:"AIzaSyAi4xzSxIbpte7PXkPwR8T_-qr0Vqxik7A",authDomain:"sliping-chat-2.firebaseapp.com",projectId:"sliping-chat-2",storageBucket:"sliping-chat-2.firebasestorage.app",messagingSenderId:"272134980823",appId:"1:272134980823:web:1c295d79bf20f7eb0cdc92"};
+const MAIL='@sliping-chat.app',MAX_LEN=2000,V='10.12.2',G='https://www.gstatic.com/firebasejs/'+V+'/';
+const rnd=()=>[...crypto.getRandomValues(new Uint8Array(8))].map(x=>x.toString(16).padStart(2,'0')).join('');
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+/* ===== ২) ডেটা লেয়ার: Firebase পেলে Firebase, না পেলে টেস্ট মোড (শুধু এই ব্রাউজারে) ===== */
+async function makeFirebase(){
+const [A,Au,F]=await Promise.all([import(G+'firebase-app.js'),import(G+'firebase-auth.js'),import(G+'firebase-firestore.js')]);
+const app0=A.initializeApp(firebaseConfig),auth=Au.getAuth(app0),db=F.getFirestore(app0);
+const col=c=>F.collection(db,'chats',c,'messages');let busy=false;
+return{demo:false,
+async register(n,p){busy=true;try{const c=await Au.createUserWithEmailAndPassword(auth,n+MAIL,p);await F.setDoc(F.doc(db,'users',c.user.uid),{name:n,role:'user',st:'active',t:F.serverTimestamp()});await Au.signOut(auth)}finally{busy=false}},
+login:(n,p)=>Au.signInWithEmailAndPassword(auth,n+MAIL,p),
+logout:()=>Au.signOut(auth),
+onAuth(cb){Au.onAuthStateChanged(auth,async u=>{if(busy)return;if(!u)return cb(null);const s=await F.getDoc(F.doc(db,'users',u.uid));cb(s.exists()&&s.data().st==='active'?{uid:u.uid,name:s.data().name}:'bad')})},
+users:cb=>F.onSnapshot(F.collection(db,'users'),q=>cb(q.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.st==='active'))),
+msgs:(c,cb,er)=>F.onSnapshot(F.query(col(c),F.orderBy('t'),F.limit(100)),q=>cb(q.docs.map(d=>{const x=d.data();return{id:d.id,...x,ms:x.t&&x.t.toMillis?x.t.toMillis():null}})),er),
+add:(c,m)=>F.addDoc(col(c),{...m,t:F.serverTimestamp()}),
+upd:(c,id,m)=>F.updateDoc(F.doc(db,'chats',c,'messages',id),m),
+del:(c,id)=>F.deleteDoc(F.doc(db,'chats',c,'messages',id))}}
+function makeLocal(){
+const ls={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const L=new Set(),fire=()=>L.forEach(f=>f());addEventListener('storage',fire);
+let authCb=null;const U=()=>ls.get('sc_u',{}),sub=(f)=>{L.add(f);f();return()=>L.delete(f)};
+const edit=(c,id,fn)=>{const a=ls.get('sc_m_'+c,[]),i=a.findIndex(x=>x.id===id);if(i>-1){fn(a,i);ls.set('sc_m_'+c,a);fire()}};
+return{demo:true,
+async register(n,p){const u=U();if(u[n])throw{code:'auth/email-already-in-use'};u[n]={name:n,pw:await sha(n+':'+p)};ls.set('sc_u',u);fire()},
+async login(n,p){const u=U()[n];if(!u||u.pw!==await sha(n+':'+p))throw new Error('bad');ls.set('sc_s',n);authCb&&authCb({uid:n,name:n})},
+async logout(){ls.set('sc_s',null);authCb&&authCb(null)},
+onAuth(cb){authCb=cb;const s=ls.get('sc_s',null);cb(s&&U()[s]?{uid:s,name:s}:null)},
+users:cb=>sub(()=>cb(Object.values(U()).map(u=>({id:u.name,name:u.name,st:'active'})))),
+msgs:(c,cb)=>sub(()=>cb(ls.get('sc_m_'+c,[]))),
+async add(c,m){const a=ls.get('sc_m_'+c,[]);a.push({id:rnd(),...m,ms:Date.now()});ls.set('sc_m_'+c,a);fire()},
+async upd(c,id,m){edit(c,id,(a,i)=>Object.assign(a[i],m))},
+async del(c,id){edit(c,id,(a,i)=>a.splice(i,1))}}}
+let B;try{B=await Promise.race([makeFirebase(),new Promise((_,r)=>setTimeout(r,6000))])}catch{B=makeLocal()}
+
+/* ===== ৩) ইন্টারফেস ===== */
+const $=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let me,cur,U=[],M=[],subs=[],msub=null,sel=null,editing=null;
+const off=()=>{subs.forEach(f=>f());subs=[];if(msub)msub();msub=null};
+const cid=(a,b)=>[a,b].sort().join('_');
+const tm=m=>m.ms?new Date(m.ms).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'}):'…';
+const toast=t=>{const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)};
+const theme=()=>{const r=document.documentElement;r.dataset.theme=(r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'?'light':'dark'};
+
+function authUI(mode='reg',msg='',ok=false){const reg=mode==='reg',fn=reg?'register()':'login()';
+app.innerHTML=`<div class="login"><div class="logo" style="font-size:20px">SLIPING CHAT</div>
+${B.demo?'<div class="demo">🧪 টেস্ট মোড: ডেটা শুধু এই ব্রাউজারে থাকবে। নিজের হোস্টিংয়ে দিলে Firebase দিয়ে সবার জন্য চলবে।</div>':''}
+<div class="tabs"><button class="btn ${reg?'':'g'} s" onclick="authUI('reg')">রেজিস্টার</button><button class="btn ${reg?'g':''} s" onclick="authUI('login')">লগইন</button></div>
+<input id="u" placeholder="ইউজারনেম (a-z, 0-9, _)" autocapitalize="none" autocomplete="off">
+<input id="p" type="password" placeholder="পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)" autocomplete="off" onkeydown="if(event.key==='Enter')${fn}">
+${reg?'<input id="p2" type="password" placeholder="পাসওয়ার্ড আবার লিখুন" autocomplete="off">':''}
+<div style="color:var(--${ok?'ok':'bad'})">${esc(msg)}</div>
+<div style="display:flex;gap:8px"><button class="btn" style="flex:1" onclick="${fn}">${reg?'অ্যাকাউন্ট তৈরি করুন':'লগইন'}</button><button class="btn g" onclick="theme()">🌓</button></div></div>`}
+async function register(){const n=$('#u').value.trim().toLowerCase(),p=$('#p').value,p2=$('#p2').value;
+if(!/^[a-z0-9_]{3,20}$/.test(n))return authUI('reg','ইউজারনেম ৩–২০ অক্ষর (a-z, 0-9, _)');
+if(p.length<6)return authUI('reg','পাসওয়ার্ড কমপক্ষে ৬ অক্ষর');
+if(p!==p2)return authUI('reg','দুটি পাসওয়ার্ড মেলেনি');
+try{await B.register(n,p);authUI('login','অ্যাকাউন্ট তৈরি হয়েছে! এখন লগইন করুন',true);$('#u').value=n}
+catch(e){authUI('reg',e&&e.code==='auth/email-already-in-use'?'এই ইউজারনেম আগে থেকেই আছে':'রেজিস্ট্রেশন ব্যর্থ হয়েছে')}}
+async function login(){const n=$('#u').value.trim().toLowerCase(),p=$('#p').value;
+try{await B.login(n,p)}catch{authUI('login','ইউজারনেম বা পাসওয়ার্ড ভুল')}}
+async function logout(){off();await B.logout()}
+
+function start(u){off();me=u;cur=null;
+app.innerHTML=`<div class="app" id="ap"><aside class="side"><div class="hd"><div class="av">${esc(me.name[0].toUpperCase())}</div><b>${esc(me.name)}</b><button class="btn g s" onclick="theme()">🌓</button><button class="btn g s" onclick="logout()">বের হন</button></div>${B.demo?'<div class="demo" style="margin:10px 10px 0">🧪 টেস্ট মোড</div>':''}<div style="padding:10px"><input id="q" placeholder="ইউজার খুঁজুন…" oninput="list()" autocomplete="off"></div><div id="list"></div></aside><main class="main"><div class="hd" id="ch"></div><div id="msgs"></div><div class="eb" id="eb" hidden></div><div class="cmp" id="cmp"><input id="in" placeholder="বার্তা লিখুন…" maxlength="${MAX_LEN}" autocomplete="off" onkeydown="if(event.key==='Enter')send()"><button class="btn" onclick="send()">পাঠান</button></div></main></div>`;
+list();chat();subs.push(B.users(x=>{U=x.filter(y=>y.id!==me.uid);list()}))}
+function list(){if(!me||!$('#list'))return;const q=($('#q').value||'').toLowerCase();
+const all=[{id:'room',name:'সবার চ্যাট',i:'💬'},{id:me.uid,name:'সংরক্ষিত বার্তা',i:'🔖'},...U.map(u=>({id:u.id,name:u.name,i:u.name[0].toUpperCase()}))];
+$('#list').innerHTML=all.filter(c=>c.name.toLowerCase().includes(q)).map(c=>`<button class="it ${cur&&cur.id===c.id?'on':''}" onclick="openChat('${c.id}')"><div class="av">${c.i}</div><b>${esc(c.name)}</b></button>`).join('')||'<div class="empty">কাউকে পাওয়া যায়নি</div>'}
+const chatId=()=>cur.id==='room'?'room':cid(me.uid,cur.id),isSaved=()=>cur&&cur.id===me.uid;
+function openChat(id){const u=U.find(x=>x.id===id);
+cur=id==='room'?{id,name:'সবার চ্যাট',i:'💬'}:id===me.uid?{id,name:'সংরক্ষিত বার্তা',i:'🔖'}:(u&&{id,name:u.name,i:u.name[0].toUpperCase()});
+if(!cur)return;sel=null;cancelEdit();M=[];if(msub)msub();
+msub=B.msgs(chatId(),x=>{M=x;chat()},()=>toast('বার্তা লোড করা যায়নি'));
+$('#ap').classList.add('open');list();chat()}
+function closeChat(){cur=null;if(msub)msub();msub=null;$('#ap').classList.remove('open');list();chat()}
+function chat(){if(!me||!$('#ch'))return;const ch=$('#ch'),box=$('#msgs');
+if(!cur){$('#cmp').style.display='none';ch.innerHTML='<b class="logo">SLIPING CHAT</b>';box.innerHTML='<div class="empty">চ্যাট শুরু করতে কাউকে বেছে নিন</div>';return}
+$('#cmp').style.display='flex';
+ch.innerHTML=`<button class="btn g s back" onclick="closeChat()">←</button><div class="av sm">${esc(cur.i)}</div><b>${esc(cur.name)}</b>`;
+const room=cur.id==='room';
+box.innerHTML=M.length?M.map(m=>{const mine=m.from===me.uid,from=room&&!mine?(U.find(x=>x.id===m.from)||{name:'ইউজার'}).name:'';
+const ac=sel===m.id&&!m.del?`<div class="acts" style="align-self:${mine?'flex-end':'flex-start'}">${mine?`<button class="btn g s" onclick="act('e','${m.id}')">✏️ এডিট</button><button class="btn g s" onclick="act('d','${m.id}')">🗑 মুছুন</button>`:''}${isSaved()?`<button class="btn g s" onclick="act('r','${m.id}')">❌ সরান</button>`:`<button class="btn g s" onclick="act('s','${m.id}')">🔖 সংরক্ষণ</button>`}</div>`:'';
+return `<div class="b ${mine?'me':''}" onclick="pick('${m.id}')">${from?`<span class="n">${esc(from)}</span>`:''}${m.del?'<i>মুছে ফেলা হয়েছে</i>':esc(m.text)}<small>${m.ed?'সম্পাদিত · ':''}${tm(m)}</small></div>${ac}`}).join(''):'<div class="empty">কথোপকথন শুরু করুন 👋</div>';
+box.scrollTop=box.scrollHeight}
+function pick(id){sel=sel===id?null:id;chat()}
+async function act(k,id){const m=M.find(x=>x.id===id);sel=null;if(!m)return chat();
+try{if(k==='d')await B.upd(chatId(),id,{del:true,text:''});
+else if(k==='r')await B.del(chatId(),id);
+else if(k==='e'){editing=id;$('#in').value=m.text;$('#eb').hidden=false;$('#eb').innerHTML='✏️ সম্পাদনা হচ্ছে — <button class="btn g s" onclick="cancelEdit()">বাতিল</button>';$('#in').focus()}
+else{await B.add(cid(me.uid,me.uid),{from:me.uid,text:m.text});toast('সংরক্ষিত বার্তায় যোগ হয়েছে')}}catch{toast('অ্যাকশন ব্যর্থ হয়েছে')}chat()}
+function cancelEdit(){editing=null;if($('#in'))$('#in').value='';if($('#eb'))$('#eb').hidden=true}
+async function send(){const i=$('#in'),t=i.value.trim();if(!t||!cur)return;
+try{if(editing){await B.upd(chatId(),editing,{text:t,ed:true});cancelEdit()}
+else{i.value='';await B.add(chatId(),{from:me.uid,text:t})}}catch{toast('বার্তা পাঠানো যায়নি')}}
+
+/* ===== ৪) নতুন ফিচার: ফাংশন লিখে নিচের তালিকায় নাম যোগ করুন ===== */
+Object.assign(window,{theme,authUI,register,login,logout,list,openChat,closeChat,pick,act,cancelEdit,send});
+B.onAuth(u=>{if(u==='bad'){B.logout();authUI('login','অ্যাকাউন্ট পাওয়া যায়নি বা সাসপেন্ড করা হয়েছে')}else if(u)start(u);else{off();me=null;authUI('reg')}});
+</script></body></html>
